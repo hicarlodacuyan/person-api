@@ -5,8 +5,9 @@ import getTokenFrom from "../utils/getTokenFrom.js";
 import jwt from "jsonwebtoken";
 import config from "../utils/config.js";
 
-async function getPersons(_, res) {
-  const persons = await Person.find({});
+async function getPersons(req, res) {
+  const decodedToken = jwt.verify(getTokenFrom(req), config.SECRET);
+  const persons = await Person.find({ user: decodedToken.id });
 
   return res.json(persons);
 }
