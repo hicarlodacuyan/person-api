@@ -12,7 +12,10 @@ const personSchema = new mongoose.Schema({
     required: true,
   },
   user: String,
-  photoUrl: String,
+  photoInfo: {
+    url: String,
+    filename: String,
+  },
 });
 
 personSchema.set("toJSON", {

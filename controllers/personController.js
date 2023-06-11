@@ -5,7 +5,7 @@ import getTokenFrom from "../utils/getTokenFrom.js";
 import jwt from "jsonwebtoken";
 import config from "../utils/config.js";
 import storage from "../utils/firebaseConfig.js";
-import { ref, uploadBytes } from "firebase/storage";
+import { ref, uploadBytes, deleteObject } from "firebase/storage";
 import generateUniqueImageFileName from "../utils/generateUniqueImageFileName.js";
 
 async function getPersons(req, res) {
@@ -51,7 +51,10 @@ async function createPerson(req, res, next) {
       name,
       number,
       user: user._id,
-      photoUrl: photoUrl,
+      photoInfo: {
+        url: photoUrl,
+        filename: snapshot.ref.fullPath,
+      },
     });
 
     const savedPerson = await person.save();
@@ -100,8 +103,22 @@ async function updatePerson(req, res, next) {
 
 async function deletePerson(req, res, next) {
   try {
-    const id = req.params.id;
-    await Person.findByIdAndDelete(id);
+    const { id } = req.params;
+    const decodedToken = jwt.verify(getTokenFrom(req), config.SECRET);
+
+    if (!decodedToken.id) {
+      return res.status(401).json({ error: "Token missing or invalid" });
+    }
+
+    const user = await User.findById(decodedToken.id);
+    const person = await Person.findByIdAndDelete(id);
+    const photoRef = ref(storage, person.photoInfo.filename);
+
+    await deleteObject(photoRef);
+    user.persons = user.persons.filter(
+      (personId) => personId.toString() !== person._id.toString()
+    );
+    await user.save();
 
     return res.status(204).end();
   } catch (error) {
