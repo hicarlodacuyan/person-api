@@ -4,6 +4,9 @@ import isString from "../utils/isString.js";
 import getTokenFrom from "../utils/getTokenFrom.js";
 import jwt from "jsonwebtoken";
 import config from "../utils/config.js";
+import storage from "../utils/firebaseConfig.js";
+import { ref, uploadBytes } from "firebase/storage";
+import generateUniqueImageFileName from "../utils/generateUniqueImageFileName.js";
 
 async function getPersons(req, res) {
   const decodedToken = jwt.verify(getTokenFrom(req), config.SECRET);
@@ -35,16 +38,25 @@ async function createPerson(req, res, next) {
     }
 
     const user = await User.findById(decodedToken.id);
+    const storageRef = ref(storage, generateUniqueImageFileName(req.file));
+    const metadata = {
+      contentType: "image/jpeg",
+    };
+    const snapshot = await uploadBytes(storageRef, req.file.buffer, metadata);
+    const photoUrl = `https://firebasestorage.googleapis.com/v0/b/${
+      snapshot.ref.bucket
+    }/o/${encodeURIComponent(snapshot.ref.fullPath)}?alt=media`;
 
     const person = new Person({
       name,
       number,
       user: user._id,
+      photoUrl: photoUrl,
     });
 
     const savedPerson = await person.save();
 
-    user.persons = user.persons.concat(savedPerson._id);
+    user.persons.push(savedPerson._id);
     await user.save();
 
     return res.status(201).json(savedPerson);
