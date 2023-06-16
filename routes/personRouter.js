@@ -7,7 +7,7 @@ const personRouter = express.Router();
 personRouter.get("/", personController.getPersons);
 personRouter.get("/:id", personController.getPerson);
 personRouter.post("/", upload.single("image"), personController.createPerson);
-personRouter.put("/:id", personController.updatePerson);
+personRouter.put("/:id", upload.single("image"), personController.updatePerson);
 personRouter.delete("/:id", personController.deletePerson);
 
 export default personRouter;

@@ -1,6 +1,5 @@
 import User from "../models/User.js";
 import Person from "../models/Person.js";
-import isString from "../utils/isString.js";
 import getTokenFrom from "../utils/getTokenFrom.js";
 import jwt from "jsonwebtoken";
 import config from "../utils/config.js";
@@ -70,30 +69,43 @@ async function createPerson(req, res, next) {
 
 async function updatePerson(req, res, next) {
   const id = req.params.id;
-  const { name, number } = req.body;
+  const { name, number, photoInfo } = req.body;
+  console.log(photoInfo);
+  console.log(typeof photoInfo);
+  let snapshot;
+  let photoUrl = "";
 
-  if (name === undefined || number === undefined)
-    return res.status(400).json({ error: "Content is missing" });
-
-  if (name === "" || number === "")
-    return res.status(400).json({ error: "Name and number are required" });
-
-  if (!isString(name) || !isString(number))
-    return res.status(400).json({ error: "Name and number must be strings" });
+  if (req.file) {
+    const storageRef = ref(storage, generateUniqueImageFileName(req.file));
+    const metadata = {
+      contentType: "image/jpeg",
+    };
+    snapshot = await uploadBytes(storageRef, req.file.buffer, metadata);
+    photoUrl = `https://firebasestorage.googleapis.com/v0/b/${snapshot.ref.bucket}/o/${snapshot.ref.fullPath}?alt=media`;
+  }
 
   const person = {
     name,
     number,
+    photoInfo: photoInfo
+      ? photoInfo
+      : { url: photoUrl, filename: snapshot.ref.fullPath },
   };
 
   try {
+    // const previousPerson = await Person.findById(id);
+    // const photoRef = ref(storage, previousPerson.photoInfo.filename);
+    // await deleteObject(photoRef);
+
     const updatedPerson = await Person.findByIdAndUpdate(id, person, {
       new: true,
       runValidators: true,
       context: "query",
     });
 
-    if (updatedPerson) return res.json(updatedPerson);
+    if (updatedPerson) {
+      return res.json(updatedPerson);
+    }
 
     return res.status(404).json({ error: "Person not found" });
   } catch (error) {
