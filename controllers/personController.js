@@ -69,9 +69,8 @@ async function createPerson(req, res, next) {
 
 async function updatePerson(req, res, next) {
   const id = req.params.id;
-  const { name, number, photoInfo } = req.body;
-  console.log(photoInfo);
-  console.log(typeof photoInfo);
+  const { name, number } = req.body;
+  const previousPerson = await Person.findById(id);
   let snapshot;
   let photoUrl = "";
 
@@ -82,21 +81,20 @@ async function updatePerson(req, res, next) {
     };
     snapshot = await uploadBytes(storageRef, req.file.buffer, metadata);
     photoUrl = `https://firebasestorage.googleapis.com/v0/b/${snapshot.ref.bucket}/o/${snapshot.ref.fullPath}?alt=media`;
+
+    const photoRef = ref(storage, previousPerson.photoInfo.filename);
+    await deleteObject(photoRef);
   }
 
   const person = {
     name,
     number,
-    photoInfo: photoInfo
-      ? photoInfo
-      : { url: photoUrl, filename: snapshot.ref.fullPath },
+    photoInfo: req.file
+      ? { url: photoUrl, filename: snapshot.ref.fullPath }
+      : previousPerson.photoInfo,
   };
 
   try {
-    // const previousPerson = await Person.findById(id);
-    // const photoRef = ref(storage, previousPerson.photoInfo.filename);
-    // await deleteObject(photoRef);
-
     const updatedPerson = await Person.findByIdAndUpdate(id, person, {
       new: true,
       runValidators: true,

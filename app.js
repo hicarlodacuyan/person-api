@@ -7,6 +7,7 @@ import loginRouter from "./routes/loginRouter.js";
 import personRouter from "./routes/personRouter.js";
 import errorHandler from "./middlewares/errorHandler.js";
 import unknownEndpoint from "./middlewares/unknownEndpoint.js";
+import upload from "./utils/multer.js";
 
 const app = express();
 
@@ -22,7 +23,7 @@ app.use(express.json());
 app.use(express.static("dist"));
 app.use("/api/users", userRouter);
 app.use("/api/login", loginRouter);
-app.use("/api/persons", personRouter);
+app.use("/api/persons", upload.single("image"), personRouter);
 app.use(unknownEndpoint);
 app.use(errorHandler);
 
