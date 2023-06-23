@@ -6,6 +6,9 @@ import config from "../utils/config.js";
 import storage from "../utils/firebaseConfig.js";
 import { ref, uploadBytes, deleteObject } from "firebase/storage";
 import generateUniqueImageFileName from "../utils/generateUniqueImageFileName.js";
+import uploadFile from "../utils/uploadFile.js";
+import userService from "../services/userService.js";
+import personService from "../services/personService.js";
 
 async function getPersons(req, res) {
   const decodedToken = jwt.verify(getTokenFrom(req), config.SECRET);
@@ -30,36 +33,17 @@ async function getPerson(req, res, next) {
 async function createPerson(req, res, next) {
   try {
     const { name, number } = req.body;
-    const decodedToken = jwt.verify(getTokenFrom(req), config.SECRET);
-
-    if (!decodedToken.id) {
-      return res.status(401).json({ error: "Token missing or invalid" });
-    }
-
-    const user = await User.findById(decodedToken.id);
-    const storageRef = ref(storage, generateUniqueImageFileName(req.file));
-    const metadata = {
-      contentType: "image/jpeg",
-    };
-    const snapshot = await uploadBytes(storageRef, req.file.buffer, metadata);
-    const photoUrl = `https://firebasestorage.googleapis.com/v0/b/${
-      snapshot.ref.bucket
-    }/o/${encodeURIComponent(snapshot.ref.fullPath)}?alt=media`;
-
-    const person = new Person({
+    const decodedToken = userService.verifyToken(req, config.SECRET);
+    const user = await userService.getUser(decodedToken.id);
+    const photoInfo = await uploadFile(req.file);
+    const savedPerson = await personService.createPerson({
       name,
       number,
       user: user._id,
-      photoInfo: {
-        url: photoUrl,
-        filename: snapshot.ref.fullPath,
-      },
+      photoInfo,
     });
 
-    const savedPerson = await person.save();
-
-    user.persons.push(savedPerson._id);
-    await user.save();
+    userService.savePerson(savedPerson._id, user);
 
     return res.status(201).json(savedPerson);
   } catch (error) {
